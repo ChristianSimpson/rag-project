@@ -24,7 +24,35 @@ Rag Systems build on this exact foundation
 
 Week 6
 
+### Multi-step API flow
 
+- **Step 1 – Validate input**
+  - Check that the question is present, not too short, and not too long.
+  - Return a clear `400` error for bad requests instead of calling the model.
+
+- **Step 2 – Call the primary Gemini model**
+  - Send the validated question to the configured Gemini model (`PRIMARY_MODEL_ID`).
+  - Get the first-draft answer from the model.
+
+- **Step 3 – Validate model output**
+  - Ensure the model’s answer is non-empty and has a minimum length.
+  - If the answer fails validation, return a `500` error instead of passing through unusable content.
+
+- **Step 4 – Review with a second model**
+  - Build a review prompt that includes the original answer and instructions.
+  - Ask a second model (`REVIEW_MODEL_ID`) to improve clarity and completeness when needed.
+
+### Why these steps are separated
+
+- Each step has a **single responsibility** (validate input, generate, validate output, review).
+- Failures are easier to understand: input errors vs. model errors vs. review errors.
+- You can swap models, tweak validation rules, or disable the review layer without changing the other steps.
+
+### Challenges and open questions
+
+- Tuning thresholds: what is the “right” minimum length for answers in different domains?
+- Cost vs. quality: when is the extra review pass worth the extra latency and tokens?
+- Future work: adding logging and metrics around each step to better understand failures and quality over time.
 
 Week 7
 ## Why these safeguards exist
