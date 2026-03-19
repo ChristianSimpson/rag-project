@@ -1,5 +1,6 @@
-fastapi
-uvicorn
-python-dotenv
-google-genai
-pydantic
+streamlit>=1.32.0
+sentence-transformers>=2.7.0
+chromadb>=0.5.0
+google-genai>=1.0.0
+python-dotenv>=1.0.0
+ve
