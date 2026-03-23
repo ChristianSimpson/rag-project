@@ -16,6 +16,7 @@
 #   Week 14: Add filtering & fallbacks   → integrate filters.py
 #   Week 15: Add query rewriting         → integrate workflow.py
 
+import ast
 import inspect
 
 from google import genai
@@ -156,6 +157,23 @@ def run_rag(query, conversation_history=None):
     }
 
 
+def _function_calls_generate_content(func):
+    """True if func's source contains a real generate_content() call (not just in comments)."""
+    try:
+        tree = ast.parse(inspect.getsource(func))
+    except (OSError, TypeError, SyntaxError):
+        return False
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        f = node.func
+        if isinstance(f, ast.Attribute) and f.attr == "generate_content":
+            return True
+        if isinstance(f, ast.Name) and f.id == "generate_content":
+            return True
+    return False
+
+
 def get_feature_status():
     """
     Auto-detect which weekly features are implemented.
@@ -185,7 +203,7 @@ def get_feature_status():
     _filtered, _ = filter_by_threshold(["a", "b"], [0.3, 1.5], threshold=1.0)
     week14 = len(_filtered) == 1
 
-    week15 = "generate_content" in inspect.getsource(rewrite_query)
+    week15 = _function_calls_generate_content(rewrite_query)
 
     return {
         "Week 11 — Conversation context": week11,
