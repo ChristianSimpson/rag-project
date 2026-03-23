@@ -16,6 +16,8 @@
 #   Week 14: Add filtering & fallbacks   → integrate filters.py
 #   Week 15: Add query rewriting         → integrate workflow.py
 
+import inspect
+
 from google import genai
 from google.genai import types
 
@@ -86,21 +88,10 @@ def generate_answer(query, context_docs, conversation_history=None):
         [f"Document {i+1}: {doc}" for i, doc in enumerate(context_docs)]
     )
 
-    # ── Week 11 TODO ──────────────────────────────────────────────────────────
-    # Add conversation history to the prompt.
-    #
-    # The RAG concept: LLMs have no memory between API calls. To support
-    # follow-up questions, we paste the prior conversation directly into the
-    # prompt so the model can see what was already discussed.
-    #
-    # If conversation_history is not None and len(conversation_history) > 0:
-    #   history_text = conversation_history.get_formatted_history()
-    #   Set history_section to: f"\nPrevious conversation:\n{history_text}\n"
-    # Otherwise set history_section = ""
-    #
-    # Then include {history_section} in the prompt string below (already shown).
-    # ─────────────────────────────────────────────────────────────────────────
-    history_section = ""  # Week 11: replace with conversation history logic
+    history_section = ""
+    if conversation_history is not None and conversation_history.messages:
+        history_text = conversation_history.get_formatted_history()
+        history_section = f"\nPrevious conversation:\n{history_text}\n"
 
     prompt = f"""You are a helpful assistant that answers questions based on the provided context documents.
 
@@ -141,86 +132,67 @@ def run_rag(query, conversation_history=None):
       - "error":      Error message (empty string if no error)
     """
 
-    # ── Week 12 TODO ──────────────────────────────────────────────────────────
-    # Add input security before any processing happens.
-    #
-    # The RAG concept: always validate at the system boundary — the moment
-    # user input enters the app, before it touches the LLM or vector store.
-    # Prompt injection can hijack LLM behavior, so we stop bad input here.
-    #
-    # Steps:
-    #   1. Call validate_input(query) → returns (is_valid, error_message)
-    #   2. If not is_valid, return this dict immediately:
-    #        {"answer": error_message, "sources": [], "distances": [],
-    #         "confidence": 0.0, "grounding": {}, "error": error_message}
-    #   3. Clean up the query: query = sanitize_input(query)
-    # ─────────────────────────────────────────────────────────────────────────
+    is_valid, validation_error = validate_input(query)
+    if not is_valid:
+        return {
+            "answer": validation_error,
+            "sources": [],
+            "distances": [],
+            "confidence": 0.0,
+            "grounding": {},
+            "error": validation_error,
+        }
 
-    # ── Week 15 TODO ──────────────────────────────────────────────────────────
-    # Rewrite the query before retrieval to improve embedding quality.
-    #
-    # The RAG concept: the phrasing of the query directly affects what
-    # embedding gets produced, which affects what documents get retrieved.
-    # A more specific, well-formed query produces a better embedding.
-    #
-    # Steps:
-    #   1. Get conversation context (if any):
-    #        history_context = ""
-    #        if conversation_history and len(conversation_history) > 0:
-    #            history_context = conversation_history.get_formatted_history()
-    #   2. Rewrite: query = rewrite_query(query, history_context)
-    # ─────────────────────────────────────────────────────────────────────────
+    query = sanitize_input(query)
 
-    # ── Week 10: Core Retrieval — already complete ───────────────────────────
-    documents, distances = retrieve_context(query)
+    history_context = ""
+    if conversation_history and conversation_history.messages:
+        history_context = conversation_history.get_formatted_history()
 
-    # ── Week 14 TODO ──────────────────────────────────────────────────────────
-    # Filter out documents that aren't similar enough to be useful.
-    #
-    # The RAG concept: ChromaDB always returns results even when nothing is
-    # relevant. Without filtering, we might generate an answer from completely
-    # unrelated documents. The threshold cuts off low-quality matches.
-    #
-    # Steps:
-    #   1. Filter: documents, distances = filter_by_threshold(documents, distances, SIMILARITY_THRESHOLD)
-    #   2. If not has_relevant_results(documents), return a fallback dict:
-    #        {"answer": get_fallback_response(), "sources": [], "distances": [],
-    #         "confidence": 0.0,
-    #         "grounding": {"verdict": "N/A", "is_grounded": True, "warning": ""},
-    #         "error": ""}
-    # ─────────────────────────────────────────────────────────────────────────
+    retrieval_query = rewrite_query(query, history_context)
+    documents, distances = retrieve_context(retrieval_query)
 
-    # ── Week 10: Core Generation — already complete ──────────────────────────
-    # Week 14: wrap this in try/except and call handle_api_error(e) on failure
-    answer = generate_answer(query, documents, conversation_history)
+    documents, distances = filter_by_threshold(
+        documents, distances, SIMILARITY_THRESHOLD
+    )
 
-    # ── Week 13 TODO ──────────────────────────────────────────────────────────
-    # Monitor the response quality after generation.
-    #
-    # The RAG concept: even with context, LLMs can hallucinate. We use
-    # "LLM-as-judge" — asking Gemini to evaluate its own output against the
-    # source documents. We also convert vector distances into a confidence
-    # score so users know how well the retrieved docs matched the query.
-    #
-    # Steps:
-    #   1. confidence = calculate_confidence(distances)
-    #   2. grounding  = check_hallucination(answer, documents)
-    #   Then replace the placeholder values below with these variables.
-    # ─────────────────────────────────────────────────────────────────────────
-    confidence = 0.0  # Week 13: replace with calculate_confidence(distances)
-    grounding = {}    # Week 13: replace with check_hallucination(answer, documents)
+    if not has_relevant_results(documents):
+        fallback = get_fallback_response()
+        if conversation_history is not None:
+            conversation_history.add_message("user", query)
+            conversation_history.add_message("assistant", fallback)
+        return {
+            "answer": fallback,
+            "sources": [],
+            "distances": [],
+            "confidence": 0.0,
+            "grounding": {
+                "verdict": "N/A",
+                "is_grounded": True,
+                "warning": "",
+            },
+            "error": "",
+        }
 
-    # ── Week 11 TODO ──────────────────────────────────────────────────────────
-    # Save this exchange to conversation history so follow-up questions work.
-    #
-    # The RAG concept: we store both sides of the exchange (user question AND
-    # assistant answer) so get_formatted_history() can include both in the
-    # next prompt. Without this step, history is never actually saved.
-    #
-    # Steps (only if conversation_history is not None):
-    #   conversation_history.add_message("user", query)
-    #   conversation_history.add_message("assistant", answer)
-    # ─────────────────────────────────────────────────────────────────────────
+    try:
+        answer = generate_answer(query, documents, conversation_history)
+    except Exception as exc:
+        err_msg = handle_api_error(exc)
+        return {
+            "answer": err_msg,
+            "sources": [],
+            "distances": [],
+            "confidence": 0.0,
+            "grounding": {},
+            "error": err_msg,
+        }
+
+    confidence = calculate_confidence(distances)
+    grounding = check_hallucination(answer, documents)
+
+    if conversation_history is not None:
+        conversation_history.add_message("user", query)
+        conversation_history.add_message("assistant", answer)
 
     return {
         "answer": answer,
@@ -260,8 +232,7 @@ def get_feature_status():
     _filtered, _ = filter_by_threshold(["a", "b"], [0.3, 1.5], threshold=1.0)
     week14 = len(_filtered) == 1
 
-    # Week 15: hard to auto-detect without an API call — check manually
-    week15 = None  # None = "check manually"
+    week15 = "generate_content" in inspect.getsource(rewrite_query)
 
     return {
         "Week 11 — Conversation context": week11,

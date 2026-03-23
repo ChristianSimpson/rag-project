@@ -47,7 +47,13 @@ def filter_by_threshold(documents, distances, threshold=SIMILARITY_THRESHOLD):
     #   3. For each (doc, distance) pair: if distance <= threshold, keep both
     #   4. Return (filtered_docs, filtered_distances)
     #
-    return documents, distances  # placeholder — returns everything unfiltered
+    filtered_docs = []
+    filtered_distances = []
+    for doc, distance in zip(documents, distances):
+        if distance <= threshold:
+            filtered_docs.append(doc)
+            filtered_distances.append(distance)
+    return filtered_docs, filtered_distances
 
 
 def has_relevant_results(documents):
@@ -75,7 +81,11 @@ def get_fallback_response():
     #   - Suggests the user try rephrasing or asks about supported topics
     #     (Python, machine learning, databases, APIs, AI concepts)
     #
-    return "No relevant information found."  # placeholder — make this more helpful
+    return (
+        "I couldn't find relevant information in the knowledge base for your question. "
+        "Try rephrasing, or ask about topics we cover: Python, machine learning, databases, "
+        "APIs, NLP, cloud, Git, testing, and RAG."
+    )
 
 
 def handle_api_error(error):

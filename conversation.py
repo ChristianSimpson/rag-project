@@ -62,7 +62,16 @@ class ConversationHistory:
         #
         #   3. Join all lines with "\n" and return the result.
         #
-        return ""  # replace this with your implementation
+        recent = self.get_recent(MAX_HISTORY_TURNS * 2)
+        lines = []
+        for message in recent:
+            role = message["role"]
+            content = message["content"]
+            if role == "user":
+                lines.append(f"User: {content}")
+            elif role == "assistant":
+                lines.append(f"Assistant: {content}")
+        return "\n".join(lines)
 
     def get_recent(self, n):
         """Return the last n messages."""
@@ -70,3 +79,4 @@ class ConversationHistory:
 
     def clear(self):
         """Clear all messages from the history."""
+        self.messages.clear()

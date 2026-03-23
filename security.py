@@ -25,8 +25,15 @@ import re
 # identity, asking the model to forget its context, etc.
 #
 BLOCKED_PATTERNS = [
-    # Add your blocked phrases here (all lowercase)
-    # Example: "ignore previous instructions",
+    "ignore previous instructions",
+    "ignore all previous instructions",
+    "disregard the above",
+    "forget your instructions",
+    "you are now a",
+    "new instructions:",
+    "system prompt",
+    "reveal your prompt",
+    "override your guidelines",
 ]
 
 # Maximum allowed length for a user query.
@@ -65,7 +72,18 @@ def validate_input(query):
     #
     # If all three checks pass, return: (True, "")
     #
-    return True, ""  # placeholder — replace with your implementation
+    if not query or not query.strip():
+        return False, "Please enter a question before submitting."
+    if len(query) > MAX_QUERY_LENGTH:
+        return (
+            False,
+            f"Your query is too long. Please keep it under {MAX_QUERY_LENGTH} characters.",
+        )
+    lowered = query.lower()
+    for pattern in BLOCKED_PATTERNS:
+        if pattern in lowered:
+            return False, "Your query contains content that cannot be processed."
+    return True, ""
 
 
 def sanitize_input(query):

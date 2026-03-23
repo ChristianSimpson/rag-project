@@ -61,7 +61,29 @@ def rewrite_query(original_query, conversation_context=""):
     #   4. Return response.text.strip() if it's not empty and under 500 chars
     #   5. Wrap in try/except — if anything fails, return original_query unchanged
     #
-    return original_query  # placeholder — query passes through unchanged
+    ctx = ""
+    if conversation_context.strip():
+        ctx = f"\nRecent conversation (for resolving pronouns):\n{conversation_context}\n"
+
+    prompt = f"""{ctx}Rewrite the following user question into a single clear, specific question suitable for semantic search over technical documentation. Keep the same intent. Output only the rewritten question, no preamble.
+
+User question:
+{original_query}
+
+Rewritten question:"""
+
+    try:
+        response = _client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(temperature=0.1),
+        )
+        rewritten = (response.text or "").strip()
+        if not rewritten or len(rewritten) > 500:
+            return original_query
+        return rewritten
+    except Exception:
+        return original_query
 
 
 def decompose_query(query):
