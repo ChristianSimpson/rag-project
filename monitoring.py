@@ -13,15 +13,6 @@
 # is actually supported by the context. This is a common pattern in
 # production RAG systems.
 
-import re
-
-from google import genai
-from google.genai import types
-from config import GEMINI_API_KEY, GEMINI_MODEL
-
-_client = genai.Client(api_key=GEMINI_API_KEY)
-
-
 def check_hallucination(answer, context_docs):
     """
     Ask Gemini to evaluate whether the generated answer is grounded in
@@ -71,53 +62,7 @@ def check_hallucination(answer, context_docs):
     #   6. Return the dict. Wrap everything in try/except — if this call fails,
     #      return: {"verdict": "UNKNOWN", "is_grounded": True, "warning": ""}
     #
-    if not context_docs:
-        return {"verdict": "UNKNOWN", "is_grounded": True, "warning": ""}
-
-    context = "\n\n".join(
-        [f"Document {i+1}: {doc}" for i, doc in enumerate(context_docs)]
-    )
-    prompt = f"""You are a strict fact-checker. Compare the Answer to the Context Documents.
-
-Context Documents:
-{context}
-
-Answer:
-{answer}
-
-Classify the answer with exactly ONE word — no punctuation or explanation:
-- GROUNDED: Everything important in the answer is directly supported by the context.
-- PARTIAL: Some claims are supported; others go beyond or are weakly supported by the context.
-- HALLUCINATED: The answer states facts not supported by the context.
-
-Your response (one word only):"""
-
-    try:
-        response = _client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(temperature=0.0),
-        )
-        raw = (response.text or "").strip().upper()
-        match = re.search(r"\b(GROUNDED|PARTIAL|HALLUCINATED)\b", raw)
-        verdict = match.group(1) if match else "PARTIAL"
-    except Exception:
-        return {"verdict": "UNKNOWN", "is_grounded": True, "warning": ""}
-
-    warnings = {
-        "GROUNDED": "",
-        "PARTIAL": (
-            "Note: This answer may include some information beyond the provided sources."
-        ),
-        "HALLUCINATED": (
-            "Warning: This answer may contain information not found in the source documents."
-        ),
-    }
-    return {
-        "verdict": verdict,
-        "is_grounded": verdict == "GROUNDED",
-        "warning": warnings[verdict],
-    }
+    return {"verdict": "UNKNOWN", "is_grounded": True, "warning": ""}
 
 
 def calculate_confidence(distances):
@@ -151,8 +96,4 @@ def calculate_confidence(distances):
     #   3. Apply the formula above
     #   4. Return the result rounded to 2 decimal places: round(confidence, 2)
     #
-    if not distances:
-        return 0.0
-    avg_distance = sum(distances) / len(distances)
-    confidence = max(0.0, 1.0 - (avg_distance / 2.0))
-    return round(confidence, 2)
+    return 0.0

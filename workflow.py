@@ -19,13 +19,8 @@
 #    Split them up and retrieve separately, then combine the results.
 #    This is called "multi-hop retrieval."
 
-from google import genai
-from google.genai import types
-from config import GEMINI_API_KEY, GEMINI_MODEL
 from embeddings import embed_text
 from vector_store import query_similar
-
-_client = genai.Client(api_key=GEMINI_API_KEY)
 
 
 def rewrite_query(original_query, conversation_context=""):
@@ -61,29 +56,7 @@ def rewrite_query(original_query, conversation_context=""):
     #   4. Return response.text.strip() if it's not empty and under 500 chars
     #   5. Wrap in try/except — if anything fails, return original_query unchanged
     #
-    ctx = ""
-    if conversation_context.strip():
-        ctx = f"\nRecent conversation (for resolving pronouns):\n{conversation_context}\n"
-
-    prompt = f"""{ctx}Rewrite the following user question into a single clear, specific question suitable for semantic search over technical documentation. Keep the same intent. Output only the rewritten question, no preamble.
-
-User question:
-{original_query}
-
-Rewritten question:"""
-
-    try:
-        response = _client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(temperature=0.1),
-        )
-        rewritten = (response.text or "").strip()
-        if not rewritten or len(rewritten) > 500:
-            return original_query
-        return rewritten
-    except Exception:
-        return original_query
+    return original_query
 
 
 def decompose_query(query):

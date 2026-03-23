@@ -11,8 +11,6 @@
 # This is one of the most common attacks against LLM-based applications.
 # The fix is to check user input BEFORE it ever reaches the LLM.
 
-import re
-
 # TODO (Week 12): Fill in the BLOCKED_PATTERNS list.
 #
 # --- The RAG/security concept ---
@@ -24,17 +22,7 @@ import re
 # Think about phrases like: trying to ignore instructions, claiming a new
 # identity, asking the model to forget its context, etc.
 #
-BLOCKED_PATTERNS = [
-    "ignore previous instructions",
-    "ignore all previous instructions",
-    "disregard the above",
-    "forget your instructions",
-    "you are now a",
-    "new instructions:",
-    "system prompt",
-    "reveal your prompt",
-    "override your guidelines",
-]
+BLOCKED_PATTERNS = []
 
 # Maximum allowed length for a user query.
 # Very long inputs are expensive to process and often a sign of abuse.
@@ -72,17 +60,6 @@ def validate_input(query):
     #
     # If all three checks pass, return: (True, "")
     #
-    if not query or not query.strip():
-        return False, "Please enter a question before submitting."
-    if len(query) > MAX_QUERY_LENGTH:
-        return (
-            False,
-            f"Your query is too long. Please keep it under {MAX_QUERY_LENGTH} characters.",
-        )
-    lowered = query.lower()
-    for pattern in BLOCKED_PATTERNS:
-        if pattern in lowered:
-            return False, "Your query contains content that cannot be processed."
     return True, ""
 
 

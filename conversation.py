@@ -11,9 +11,6 @@
 # directly into the prompt. The LLM "remembers" because we tell it what
 # was said before. This is called "in-context memory."
 
-from config import MAX_HISTORY_TURNS
-
-
 class ConversationHistory:
     """
     Stores and manages the history of a conversation.
@@ -62,16 +59,7 @@ class ConversationHistory:
         #
         #   3. Join all lines with "\n" and return the result.
         #
-        recent = self.get_recent(MAX_HISTORY_TURNS * 2)
-        lines = []
-        for message in recent:
-            role = message["role"]
-            content = message["content"]
-            if role == "user":
-                lines.append(f"User: {content}")
-            elif role == "assistant":
-                lines.append(f"Assistant: {content}")
-        return "\n".join(lines)
+        return ""
 
     def get_recent(self, n):
         """Return the last n messages."""

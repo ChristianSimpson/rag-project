@@ -26,16 +26,11 @@ from config import (
     GEMINI_MODEL,
     TOP_K_RESULTS,
     TEMPERATURE,
-    SIMILARITY_THRESHOLD,
 )
 from embeddings import embed_text, embed_documents
 from vector_store import add_documents, query_similar
 from data_loader import get_documents, generate_ids
-from conversation import ConversationHistory
-from security import validate_input, sanitize_input
-from monitoring import check_hallucination, calculate_confidence
-from filters import filter_by_threshold, has_relevant_results, get_fallback_response, handle_api_error
-from workflow import rewrite_query
+from filters import handle_api_error
 
 _client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -88,10 +83,8 @@ def generate_answer(query, context_docs, conversation_history=None):
         [f"Document {i+1}: {doc}" for i, doc in enumerate(context_docs)]
     )
 
+    # Week 11: paste formatted history here via conversation_history.get_formatted_history()
     history_section = ""
-    if conversation_history is not None and conversation_history.messages:
-        history_text = conversation_history.get_formatted_history()
-        history_section = f"\nPrevious conversation:\n{history_text}\n"
 
     prompt = f"""You are a helpful assistant that answers questions based on the provided context documents.
 
@@ -130,49 +123,15 @@ def run_rag(query, conversation_history=None):
       - "confidence": A 0–1 confidence score
       - "grounding":  Hallucination check result
       - "error":      Error message (empty string if no error)
+
+    Week 10: retrieve with the raw query, then generate. Weeks 11–15 add the
+    steps described in the header comments (conversation, security, monitoring,
+    filters, rewriting).
     """
+    # conversation_history is accepted for API compatibility with app.py;
+    # Week 11 wires it into the prompt and history updates.
 
-    is_valid, validation_error = validate_input(query)
-    if not is_valid:
-        return {
-            "answer": validation_error,
-            "sources": [],
-            "distances": [],
-            "confidence": 0.0,
-            "grounding": {},
-            "error": validation_error,
-        }
-
-    query = sanitize_input(query)
-
-    history_context = ""
-    if conversation_history and conversation_history.messages:
-        history_context = conversation_history.get_formatted_history()
-
-    retrieval_query = rewrite_query(query, history_context)
-    documents, distances = retrieve_context(retrieval_query)
-
-    documents, distances = filter_by_threshold(
-        documents, distances, SIMILARITY_THRESHOLD
-    )
-
-    if not has_relevant_results(documents):
-        fallback = get_fallback_response()
-        if conversation_history is not None:
-            conversation_history.add_message("user", query)
-            conversation_history.add_message("assistant", fallback)
-        return {
-            "answer": fallback,
-            "sources": [],
-            "distances": [],
-            "confidence": 0.0,
-            "grounding": {
-                "verdict": "N/A",
-                "is_grounded": True,
-                "warning": "",
-            },
-            "error": "",
-        }
+    documents, distances = retrieve_context(query)
 
     try:
         answer = generate_answer(query, documents, conversation_history)
@@ -187,19 +146,12 @@ def run_rag(query, conversation_history=None):
             "error": err_msg,
         }
 
-    confidence = calculate_confidence(distances)
-    grounding = check_hallucination(answer, documents)
-
-    if conversation_history is not None:
-        conversation_history.add_message("user", query)
-        conversation_history.add_message("assistant", answer)
-
     return {
         "answer": answer,
         "sources": documents,
         "distances": distances,
-        "confidence": confidence,
-        "grounding": grounding,
+        "confidence": 0.0,
+        "grounding": {},
         "error": "",
     }
 
@@ -216,6 +168,7 @@ def get_feature_status():
     from security import BLOCKED_PATTERNS
     from monitoring import calculate_confidence
     from filters import filter_by_threshold
+    from workflow import rewrite_query
 
     # Week 11: does get_formatted_history() produce real output?
     _h = ConversationHistory()
