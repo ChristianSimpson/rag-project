@@ -84,8 +84,10 @@ def generate_answer(query, context_docs, conversation_history=None):
         [f"Document {i+1}: {doc}" for i, doc in enumerate(context_docs)]
     )
 
-    # Week 11: paste formatted history here via conversation_history.get_formatted_history()
     history_section = ""
+    if conversation_history is not None and conversation_history.messages:
+        history_text = conversation_history.get_formatted_history()
+        history_section = f"\nPrevious conversation:\n{history_text}\n"
 
     prompt = f"""You are a helpful assistant that answers questions based on the provided context documents.
 
@@ -146,6 +148,10 @@ def run_rag(query, conversation_history=None):
             "grounding": {},
             "error": err_msg,
         }
+
+    if conversation_history is not None:
+        conversation_history.add_message("user", query)
+        conversation_history.add_message("assistant", answer)
 
     return {
         "answer": answer,
