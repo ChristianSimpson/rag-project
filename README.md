@@ -102,8 +102,8 @@ The app opens in your browser at `http://localhost:8501`.
 
 Update this checklist as you complete each week's assignment.
 
-- [ ] Week 10 — Ran the starter app and explored the codebase
-- [ ] Week 11 — Implemented conversation context
+- [x] Week 10 — Ran the starter app and explored the codebase
+- [x] Week 11 — Implemented conversation context
 - [ ] Week 12 — Implemented input security
 - [ ] Week 13 — Implemented hallucination monitoring
 - [ ] Week 14 — Implemented filtering and fallbacks
