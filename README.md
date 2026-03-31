@@ -327,3 +327,5 @@ Before your implementation: "it" doesn't get resolved and retrieval is poor. Aft
 
 ### ✅ When done
 Check off **Week 15** in the Weekly Progress section above, then delete this entire Week 15 assignment section. You've built a full, production-patterned RAG system — nice work.
+
+---
