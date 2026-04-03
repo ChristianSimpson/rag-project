@@ -104,7 +104,7 @@ Update this checklist as you complete each week's assignment.
 
 - [x] Week 10 — Ran the starter app and explored the codebase
 - [x] Week 11 — Implemented conversation context
-- [ ] Week 12 — Implemented input security
+- [x] Week 12 — Implemented input security
 - [ ] Week 13 — Implemented hallucination monitoring
 - [ ] Week 14 — Implemented filtering and fallbacks
 - [ ] Week 15 — Implemented multi-step AI workflows
@@ -187,7 +187,7 @@ Check off **Week 11** in the Weekly Progress section above, then delete this ent
 ---
 
 ---
-## Assignment: Week 12 — Input Security
+<!-- ## Assignment: Week 12 — Input Security
 
 **Learning objective:** Understand prompt injection and how to defend against it.
 
@@ -224,6 +224,8 @@ Check off **Week 12** in the Weekly Progress section above, then delete this ent
 ---
 
 ---
+--> 
+
 ## Assignment: Week 13 — Monitoring and Detecting Hallucinations
 
 **Learning objective:** Understand what hallucination is and how to detect it using LLM-as-judge.
