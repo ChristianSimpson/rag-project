@@ -11,7 +11,7 @@
 # This is one of the most common attacks against LLM-based applications.
 # The fix is to check user input BEFORE it ever reaches the LLM.
 
-# TODO (Week 12): Fill in the BLOCKED_PATTERNS list.
+# Blocked phrases used to detect likely prompt-injection attempts.
 #
 # --- The RAG/security concept ---
 # Think about what a prompt injection attack looks like.
@@ -22,7 +22,16 @@
 # Think about phrases like: trying to ignore instructions, claiming a new
 # identity, asking the model to forget its context, etc.
 #
-BLOCKED_PATTERNS = []
+BLOCKED_PATTERNS = [
+    "ignore previous instructions",
+    "ignore all instructions",
+    "override instructions",
+    "you are now",
+    "act as",
+    "pretend to be",
+    "system prompt",
+    "developer message",
+]
 
 # Maximum allowed length for a user query.
 # Very long inputs are expensive to process and often a sign of abuse.
@@ -37,29 +46,26 @@ def validate_input(query):
         (True, "")                    — query is safe, proceed
         (False, "error message")      — query is unsafe, show the error
     """
-    # TODO (Week 12): Implement three safety checks.
-    #
-    # --- The RAG/security concept ---
-    # We validate at the system boundary — the moment user input enters our app.
-    # This is called "input validation" and it's a fundamental security principle.
-    # Once bad input reaches the LLM prompt, it's much harder to defend against.
-    #
+    # Validate at the system boundary — the moment user input enters our app.
+    query = sanitize_input(query)
+
     # Check 1 — Empty input:
-    #   If query is empty or only whitespace, the app would send a pointless
-    #   API call. Return: (False, "Please enter a question before submitting.")
-    #
+    if not query:
+        return False, "Please enter a question before submitting."
+
     # Check 2 — Input too long:
-    #   Long inputs cost more tokens and can be used to flood the context window.
-    #   If len(query) > MAX_QUERY_LENGTH, return:
-    #   (False, f"Your query is too long. Please keep it under {MAX_QUERY_LENGTH} characters.")
-    #
+    if len(query) > MAX_QUERY_LENGTH:
+        return (
+            False,
+            f"Your query is too long. Please keep it under {MAX_QUERY_LENGTH} characters.",
+        )
+
     # Check 3 — Prompt injection patterns:
-    #   Convert the query to lowercase (query.lower()), then check whether any
-    #   string from BLOCKED_PATTERNS appears inside it.
-    #   If found, return: (False, "Your query contains content that cannot be processed.")
-    #
-    # If all three checks pass, return: (True, "")
-    #
+    lower_query = query.lower()
+    if any(pattern in lower_query for pattern in BLOCKED_PATTERNS):
+        return False, "Your query contains content that cannot be processed."
+
+    # All checks passed.
     return True, ""
 
 
