@@ -105,7 +105,7 @@ Update this checklist as you complete each week's assignment.
 - [x] Week 10 — Ran the starter app and explored the codebase
 - [x] Week 11 — Implemented conversation context
 - [x] Week 12 — Implemented input security
-- [ ] Week 13 — Implemented hallucination monitoring
+- [x] Week 13 — Implemented hallucination monitoring
 - [ ] Week 14 — Implemented filtering and fallbacks
 - [ ] Week 15 — Implemented multi-step AI workflows
 
@@ -225,37 +225,6 @@ Check off **Week 12** in the Weekly Progress section above, then delete this ent
 
 ---
 --> 
-
-## Assignment: Week 13 — Monitoring and Detecting Hallucinations
-
-**Learning objective:** Understand what hallucination is and how to detect it using LLM-as-judge.
-
-### Background
-
-Even when we give an LLM context documents, it sometimes generates information that goes *beyond* what those documents say. It "fills in the gaps" with plausible-sounding but unverified facts. This is called **hallucination**.
-
-How do we catch it? We use a technique called **LLM-as-judge**: after generating the answer, we make a second LLM call asking Gemini to compare the answer against the source documents and classify it as GROUNDED, PARTIAL, or HALLUCINATED. We also compute a **confidence score** from the vector distances — documents that were very close to the query in embedding space give us more confidence in the answer.
-
-### What to implement
-
-**File 1 — `monitoring.py`**
-
-Implement both functions. Read the TODO comments carefully — they explain the RAG concepts:
-- `check_hallucination()`: Build the LLM-as-judge prompt. Use `temperature=0.0` — you want a precise classification, not a creative response.
-- `calculate_confidence()`: Convert ChromaDB L2 distances to a 0–1 score using the formula in the comment.
-
-**File 2 — `rag_pipeline.py`**
-
-Find the **Week 13 TODO** block in `run_rag()`. Replace the two placeholder lines with your calls to `calculate_confidence()` and `check_hallucination()`.
-
-### How to test
-
-Run the app and look for the **Confidence** and **Grounding** indicators that appear below each answer. Ask an on-topic question (should be GROUNDED, high confidence) and notice how the scores change.
-
-### ✅ When done
-Check off **Week 13** in the Weekly Progress section above, then delete this entire Week 13 assignment section.
-
----
 
 ---
 ## Assignment: Week 14 — Filtering, Fallbacks, and Graceful Failure

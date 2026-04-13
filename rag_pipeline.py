@@ -33,6 +33,7 @@ from vector_store import add_documents, query_similar
 from data_loader import get_documents, generate_ids
 from filters import handle_api_error
 from security import validate_input, MAX_QUERY_LENGTH
+from monitoring import calculate_confidence, check_hallucination
 
 _client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -165,12 +166,15 @@ def run_rag(query, conversation_history=None):
         conversation_history.add_message("user", query)
         conversation_history.add_message("assistant", answer)
 
+    confidence = calculate_confidence(distances)
+    grounding = check_hallucination(answer, documents)
+
     return {
         "answer": answer,
         "sources": documents,
         "distances": distances,
-        "confidence": 0.0,
-        "grounding": {},
+        "confidence": confidence,
+        "grounding": grounding,
         "error": "",
     }
 
