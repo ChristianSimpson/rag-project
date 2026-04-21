@@ -32,22 +32,15 @@ def filter_by_threshold(documents, distances, threshold=SIMILARITY_THRESHOLD):
     Returns:
         (filtered_documents, filtered_distances) — only the passing pairs.
     """
-    # TODO (Week 14): Implement similarity threshold filtering.
-    #
-    # --- The RAG concept ---
-    # This is where we enforce quality control on our retrieved context.
-    # A document with distance 0.3 is very similar to the query — keep it.
-    # A document with distance 1.8 is barely related — discard it.
-    # If we passed irrelevant documents to the LLM, it might hallucinate
-    # or give a confused answer. Filtering keeps the context clean.
-    #
-    # Steps:
-    #   1. Create two empty lists: filtered_docs and filtered_distances
-    #   2. Loop through documents and distances together using zip()
-    #   3. For each (doc, distance) pair: if distance <= threshold, keep both
-    #   4. Return (filtered_docs, filtered_distances)
-    #
-    return list(documents), list(distances)
+    filtered_docs = []
+    filtered_distances = []
+
+    for doc, distance in zip(documents, distances):
+        if distance <= threshold:
+            filtered_docs.append(doc)
+            filtered_distances.append(distance)
+
+    return filtered_docs, filtered_distances
 
 
 def has_relevant_results(documents):
@@ -62,20 +55,11 @@ def get_fallback_response():
     Returns:
         A string explaining why no answer was generated and what to try instead.
     """
-    # TODO (Week 14): Write a graceful fallback message.
-    #
-    # --- The RAG concept ---
-    # When the filter removes all documents, there's nothing for the LLM to
-    # base an answer on. Instead of returning an empty string or letting the
-    # LLM make something up from nothing, we stop early and tell the user
-    # what happened. This is called "graceful degradation."
-    #
-    # Write a user-friendly message that:
-    #   - Explains no relevant information was found
-    #   - Suggests the user try rephrasing or asks about supported topics
-    #     (Python, machine learning, databases, APIs, AI concepts)
-    #
-    return ""
+    return (
+        "I couldn't find relevant information in the knowledge base for that question. "
+        "Try rephrasing your question or ask about supported topics like Python, "
+        "machine learning, databases, APIs, or AI concepts."
+    )
 
 
 def handle_api_error(error):

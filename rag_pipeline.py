@@ -31,7 +31,12 @@ from config import (
 from embeddings import embed_text, embed_documents
 from vector_store import add_documents, query_similar
 from data_loader import get_documents, generate_ids
-from filters import handle_api_error
+from filters import (
+    filter_by_threshold,
+    has_relevant_results,
+    get_fallback_response,
+    handle_api_error,
+)
 from security import validate_input, MAX_QUERY_LENGTH
 from monitoring import calculate_confidence, check_hallucination
 
@@ -148,6 +153,18 @@ def run_rag(query, conversation_history=None):
     # conversation_history is accepted for API compatibility with app.py;
     # Week 11 wires it into the prompt and history updates.
     documents, distances = retrieve_context(query)
+    documents, distances = filter_by_threshold(documents, distances)
+
+    if not has_relevant_results(documents):
+        fallback = get_fallback_response()
+        return {
+            "answer": fallback,
+            "sources": [],
+            "distances": [],
+            "confidence": 0.0,
+            "grounding": {},
+            "error": "",
+        }
 
     try:
         answer = generate_answer(query, documents, conversation_history)
