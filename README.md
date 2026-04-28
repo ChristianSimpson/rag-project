@@ -107,7 +107,7 @@ Update this checklist as you complete each week's assignment.
 - [x] Week 12 — Implemented input security
 - [x] Week 13 — Implemented hallucination monitoring
 - [x] Week 14 — Implemented filtering and fallbacks
-- [ ] Week 15 — Implemented multi-step AI workflows
+- [x] Week 15 — Implemented multi-step AI workflows
 
 ---
 
@@ -183,44 +183,5 @@ Without your implementation, the second answer will be generic. With it, the ans
 
 ### ✅ When done
 Check off **Week 11** in the Weekly Progress section above, then delete this entire Week 11 assignment section.
-
----
-<!-- ## Assignment: Week 12 — Input Security
-## Assignment: Week 15 — Multi-Step AI Workflows
-
-**Learning objective:** Understand how query quality affects retrieval, and how to improve it with LLM-powered pre-processing.
-
-### Background
-
-The quality of a RAG answer depends directly on what gets retrieved. And what gets retrieved depends on how similar the **query embedding** is to the **document embeddings**. If the user writes a vague or casual question, the resulting embedding may not match well with the more formal language in our documents.
-
-Two solutions:
-
-1. **Query rewriting**: Use an LLM to rewrite the user's question into a clearer, more specific version before embedding it. Better query → better embedding → better retrieval.
-
-2. **Query decomposition**: Some questions are actually multiple questions. Split them and search separately, then combine results. This is called **multi-hop retrieval**.
-
-### What to implement
-
-**File 1 — `workflow.py`**
-
-Implement `rewrite_query()` and `decompose_query()`. Both use Gemini to process the query before it reaches the vector store. Read the TODO comments — they explain exactly what each function should do and why.
-
-Note: `multi_hop_retrieve()` is already implemented for you — it uses your `decompose_query()` internally.
-
-**File 2 — `rag_pipeline.py`**
-
-Find the **Week 15 TODO** block at the top of `run_rag()`. Add the query rewriting step before retrieval. The rewritten query gets passed to `retrieve_context()` instead of the original.
-
-### How to test
-
-Try a vague follow-up question:
-- First ask: *"What is Python?"*
-- Then ask: *"What else can it do in the real world?"*
-
-Before your implementation: "it" doesn't get resolved and retrieval is poor. After: the rewriter uses conversation context to turn it into a specific query.
-
-### ✅ When done
-Check off **Week 15** in the Weekly Progress section above, then delete this entire Week 15 assignment section. You've built a full, production-patterned RAG system — nice work.
 
 ---

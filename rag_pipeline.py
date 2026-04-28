@@ -39,6 +39,7 @@ from filters import (
 )
 from security import validate_input, MAX_QUERY_LENGTH
 from monitoring import calculate_confidence, check_hallucination
+from workflow import rewrite_query
 
 _client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -150,9 +151,15 @@ def run_rag(query, conversation_history=None):
             "error": err_msg,
         }
 
-    # conversation_history is accepted for API compatibility with app.py;
-    # Week 11 wires it into the prompt and history updates.
-    documents, distances = retrieve_context(query)
+    rewritten_query = query
+    if conversation_history is not None and conversation_history.messages:
+        rewritten_query = rewrite_query(
+            query, conversation_history.get_formatted_history()
+        )
+    else:
+        rewritten_query = rewrite_query(query)
+
+    documents, distances = retrieve_context(rewritten_query)
     documents, distances = filter_by_threshold(documents, distances)
 
     if not has_relevant_results(documents):
