@@ -242,6 +242,13 @@ Redaction is applied at every boundary where data could leave the pipeline or en
 The function `safe_log()` in `compliance.py` is a drop-in replacement for `print()`. It runs `redact_pii()` on any content before printing, so PII never appears raw in the terminal.
 
 ---
+Applicable Trust Principles
+
+This RAG application is a chat interface that accepts free-form user input, retrieves documents, and returns AI-generated answers. Even though the current knowledge base contains only public tech content, the application's structure means sensitive data could enter at any point — a user might paste an email address into the query box, or a future document set might include internal company records.
+Three SOC 2 trust principles apply:
+Security applies because the application holds a Gemini API key that grants access to a paid AI service. If that key were exposed through logs or error messages, an attacker could use it to generate content at the owner's expense. Input validation in security.py and redaction in compliance.py together ensure that neither the key nor query content leaks through observable outputs.
+Confidentiality applies because user queries are private by nature. When someone asks a question, they have a reasonable expectation that it won't be stored in plain-text logs or forwarded to third parties without their knowledge. This application tags all user input as internal by default and redacts it before logging, so confidential content stays within the system boundary.
+Privacy applies because personally identifiable information can appear in user input without the developer anticipating it. A user might include their name, phone number, or email as part of a question. The redaction layer in compliance.py detects and masks common PII patterns before they reach the model or any log output, reducing the risk of inadvertent data exposure.
 
 ### Assumptions and Limitations
 
