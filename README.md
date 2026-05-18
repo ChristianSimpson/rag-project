@@ -185,3 +185,68 @@ Without your implementation, the second answer will be generic. With it, the ans
 Check off **Week 11** in the Weekly Progress section above, then delete this entire Week 11 assignment section.
 
 ---
+---
+
+## Week 18 — Compliance
+
+### Trust Principles
+
+This application hypothetically handles three categories of sensitive exposure, mapped to the following SOC 2 trust principles:
+
+**Security** — The Gemini API key is stored in a `.env` file and never written to code or logs. Input validation in `security.py` blocks prompt injection attempts before they reach the model. These controls protect the system itself from misuse.
+
+**Confidentiality** — User queries are treated as internal data by default, because they may contain private details (a user might paste an email address or a name into the chat box). Retrieved documents and model outputs are similarly tagged internal until proven otherwise. Confidential-tagged data is never written to plain logs.
+
+**Privacy** — The PII detection and redaction layer in `compliance.py` ensures that personally identifiable information (emails, phone numbers, SSNs, credit card numbers, IP addresses) is masked before it appears in any log line, error message, or debug output. This protects users even if logs are accidentally exposed.
+
+---
+
+### Where Sensitive Data Can Appear
+
+| Location | Risk |
+|---|---|
+| User chat input (`app.py` → `run_rag()`) | User may include email, phone number, or name |
+| Rewritten query (`workflow.py`) | PII from original query may carry into the rewritten version |
+| Retrieved documents (`vector_store.py`) | Future document sets may include PII; current set is public tech content |
+| Model output (`generate_answer()`) | Gemini may echo PII back if it appeared in the prompt |
+| Error messages (`filters.py → handle_api_error`) | Exception text may include query content |
+| Terminal / log output | Any `print()` call could leak data if unguarded |
+
+---
+
+### Metadata Tag Schema
+
+Defined in `compliance.py`. Three fields are attached to every tagged item:
+
+| Field | Values | Meaning |
+|---|---|---|
+| `sensitivity` | `public` / `internal` / `confidential` / `restricted` | How carefully this data must be handled |
+| `data_type` | `operational` / `pii` / `phi` / `financial` | Category of data |
+| `source` | `user_input` / `document` / `model_output` / `vector_store` | Where this data originated |
+
+A fourth field, `contains_pii` (`True`/`False`), is computed automatically by running regex patterns over the content at tag time. If PII is detected, `sensitivity` is automatically upgraded to `confidential` regardless of what was passed in.
+
+---
+
+### Where Redaction Occurs
+
+Redaction is applied at every boundary where data could leave the pipeline or enter a log:
+
+1. **Incoming user query** — `safe_log(..., force_redact=True)` in `run_rag()` before security validation
+2. **Rewritten query** — `safe_log(..., force_redact=True)` before the vector store call
+3. **Before sending to Gemini** — `redact_for_model()` applied to the user query and each retrieved document inside `generate_answer()`
+4. **Model output** — `safe_log(..., force_redact=True)` before the result is returned
+5. **Error messages** — `safe_error_log()` in the exception handler redacts before printing
+6. **Document ingestion** — `tag_document()` flags any PII in the knowledge base at startup
+
+The function `safe_log()` in `compliance.py` is a drop-in replacement for `print()`. It runs `redact_pii()` on any content before printing, so PII never appears raw in the terminal.
+
+---
+
+### Assumptions and Limitations
+
+- **Regex is not perfect.** The PII patterns cover common formats (US phone numbers, standard email addresses, SSNs, credit cards, IP addresses). They will miss unusual formats and non-US phone numbers.
+- **The current knowledge base contains no real PII.** The documents in `data_loader.py` are fictional tech-topic paragraphs. Tagging and redaction are implemented as production-ready infrastructure for when real documents are loaded.
+- **Redaction before model does not guarantee zero leakage.** If a user describes PII in prose without matching a known pattern ("my number starts with five-five-five"), the regex will not catch it.
+- **No persistent logging system is implemented.** `safe_log()` writes to stdout only. A production system would route logs to a structured logging backend with access controls.
+- **Sensitivity levels are not enforced at the UI layer.** `app.py` displays answers directly. In a production app, `confidential` or `restricted` answers would require additional access checks before display.

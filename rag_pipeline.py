@@ -15,6 +15,7 @@
 #   Week 13: Add hallucination monitoring → integrate monitoring.py
 #   Week 14: Add filtering & fallbacks   → integrate filters.py
 #   Week 15: Add query rewriting         → integrate workflow.py
+#   Week 18: Add compliance tagging & redaction → integrate compliance.py
 
 import ast
 import inspect
@@ -41,6 +42,20 @@ from security import validate_input, MAX_QUERY_LENGTH
 from monitoring import calculate_confidence, check_hallucination
 from workflow import rewrite_query
 
+# Week 18: Import compliance tools.
+# We use safe_log instead of print() so PII never appears in terminal output.
+# We tag data at every boundary so we know its sensitivity level throughout.
+from compliance import (
+    tag_user_input,
+    tag_document,
+    tag_model_output,
+    tag_retrieved_docs,
+    redact_for_model,
+    safe_log,
+    safe_error_log,
+    is_safe_to_log,
+)
+
 _client = genai.Client(api_key=GEMINI_API_KEY)
 
 
@@ -53,11 +68,23 @@ def initialize_vector_store():
     """
     Load all sample documents, embed them, and store them in ChromaDB.
     Called once when the app starts. After this, the vector store is ready.
+
+    Week 18: Documents are tagged at load time so the vector store knows
+    each document's sensitivity level from the moment it's ingested.
     """
     documents = get_documents()
     ids = generate_ids(documents)
     embeddings = embed_documents(documents)
     add_documents(documents, embeddings, ids)
+
+    # Week 18: Tag each document at ingestion time.
+    # All knowledge-base docs start as public/operational.
+    # tag_document() auto-upgrades to confidential if PII is detected.
+    for doc in documents:
+        tagged = tag_document(doc)
+        if is_safe_to_log(tagged):
+            safe_log("document ingested", doc[:60] + "...")
+
     return len(documents)
 
 
@@ -87,9 +114,20 @@ def generate_answer(query, context_docs, conversation_history=None):
 
     The prompt includes the retrieved documents so Gemini's answer is
     grounded in our knowledge base rather than just its training data.
+
+    Week 18: The query is tagged before being logged, and redact_for_model()
+    is applied so that any PII in user input is scrubbed before reaching Gemini.
     """
+    # Week 18: Tag the incoming query and redact PII before sending to the model.
+    tagged_query = tag_user_input(query)
+    safe_query = redact_for_model(tagged_query)
+
+    # Week 18: Tag and optionally redact retrieved docs before building the prompt.
+    tagged_docs = tag_retrieved_docs(context_docs)
+    safe_docs = [redact_for_model(t) for t in tagged_docs]
+
     context = "\n\n".join(
-        [f"Document {i+1}: {doc}" for i, doc in enumerate(context_docs)]
+        [f"Document {i+1}: {doc}" for i, doc in enumerate(safe_docs)]
     )
 
     history_section = ""
@@ -101,7 +139,7 @@ def generate_answer(query, context_docs, conversation_history=None):
 
 Context Documents:
 {context}{history_section}
-Current Question: {query}
+Current Question: {safe_query}
 
 Instructions:
 - Answer based primarily on the provided context documents
@@ -135,13 +173,18 @@ def run_rag(query, conversation_history=None):
       - "grounding":  Hallucination check result
       - "error":      Error message (empty string if no error)
 
-    Week 10: retrieve with the raw query, then generate. Weeks 11–15 add the
-    steps described in the header comments (conversation, security, monitoring,
-    filters, rewriting).
+    Week 18: Compliance tagging and safe logging are applied at every
+    boundary where data enters, moves through, or exits the pipeline.
     """
+    # Week 18: Tag user input at the earliest possible point — the moment
+    # it enters our system. Log it safely (PII will be auto-redacted).
+    tagged_query = tag_user_input(query)
+    safe_log("incoming query", query, force_redact=True)
+
     # Week 12: input security (must happen before retrieval/LLM calls).
     is_safe, err_msg = validate_input(query)
     if not is_safe:
+        safe_log("query rejected by security", err_msg)
         return {
             "answer": err_msg,
             "sources": [],
@@ -159,11 +202,15 @@ def run_rag(query, conversation_history=None):
     else:
         rewritten_query = rewrite_query(query)
 
+    # Week 18: Log the rewritten query safely before it's sent to the vector store.
+    safe_log("rewritten query", rewritten_query, force_redact=True)
+
     documents, distances = retrieve_context(rewritten_query)
     documents, distances = filter_by_threshold(documents, distances)
 
     if not has_relevant_results(documents):
         fallback = get_fallback_response()
+        safe_log("no relevant results", "returning fallback response")
         return {
             "answer": fallback,
             "sources": [],
@@ -176,6 +223,9 @@ def run_rag(query, conversation_history=None):
     try:
         answer = generate_answer(query, documents, conversation_history)
     except Exception as exc:
+        # Week 18: Redact the error message before logging — it might
+        # contain query content that has PII in it.
+        safe_error_log("generate_answer failed", exc)
         err_msg = handle_api_error(exc)
         return {
             "answer": err_msg,
@@ -189,6 +239,11 @@ def run_rag(query, conversation_history=None):
     if conversation_history is not None:
         conversation_history.add_message("user", query)
         conversation_history.add_message("assistant", answer)
+
+    # Week 18: Tag the model's output and log it safely before returning.
+    tagged_answer = tag_model_output(answer)
+    if is_safe_to_log(tagged_answer):
+        safe_log("model output", answer[:80] + "...", force_redact=True)
 
     confidence = calculate_confidence(distances)
     grounding = check_hallucination(answer, documents)
